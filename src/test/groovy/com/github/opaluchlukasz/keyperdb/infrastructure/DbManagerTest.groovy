@@ -5,15 +5,15 @@ import spock.lang.Specification
 import static java.util.UUID.randomUUID
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat
 
-class FileManagerTest extends Specification {
-    private static final String FIRST_SEGMENT_FILE_NAME = '0000000001.seg'
+class DbManagerTest extends Specification {
+    private static final String FIRST_PAGE_FILE_NAME = '0000000001.seg'
 
     def 'should create db directory if it does not exist'() {
         given:
         String name = "target/temp/${randomUUID()}"
 
         when:
-        new FileManager(name)
+        new DbManager(name)
 
         then:
         File file = new File(name)
@@ -21,15 +21,15 @@ class FileManagerTest extends Specification {
         file.isDirectory()
     }
 
-    def 'should create first segment file if it does not exist'() {
+    def 'should create first page if it does not exist'() {
         given:
         String name = "target/temp/${randomUUID()}"
 
         when:
-        new FileManager(name)
+        new DbManager(name)
 
         then:
-        File file = new File("$name/$FIRST_SEGMENT_FILE_NAME")
+        File file = new File("$name/$FIRST_PAGE_FILE_NAME")
         file.exists()
         file.isFile()
     }
@@ -37,11 +37,11 @@ class FileManagerTest extends Specification {
     def 'should use already created db if exists'() {
         given:
         String name = "target/temp/${randomUUID()}"
-        FileManager manager = new FileManager(name)
+        DbManager manager = new DbManager(name)
         manager.put('foo', 'bar')
 
         when:
-        manager = new FileManager(name)
+        manager = new DbManager(name)
         def value = manager.get('foo')
 
         then:
@@ -51,7 +51,7 @@ class FileManagerTest extends Specification {
     def 'should put multiple entries'() {
         given:
         String name = "target/temp/${randomUUID()}"
-        def manager = new FileManager(name)
+        def manager = new DbManager(name)
 
         manager.put('foo', 'bar')
         manager.put('baz', 'bar')
@@ -73,7 +73,7 @@ class FileManagerTest extends Specification {
         given:
         String name = "target/temp/${randomUUID()}"
         def overriddenValue = 'baz'
-        def manager = new FileManager(name)
+        def manager = new DbManager(name)
 
         manager.put('foo', 'bar')
         manager.put('foo', overriddenValue)
@@ -86,10 +86,10 @@ class FileManagerTest extends Specification {
         assertThat(value).hasValue(overriddenValue)
     }
 
-    def 'creates new segment when threshold reached'() {
+    def 'creates new page when threshold reached'() {
         given:
         String name = "target/temp/${randomUUID()}"
-        def manager = new FileManager(name)
+        def manager = new DbManager(name)
 
         for (int i = 0; i < 1_000; i++) {
             manager.put(randomUUID() as String, randomUUID() as String)
@@ -101,11 +101,11 @@ class FileManagerTest extends Specification {
         file.isFile()
     }
 
-    def 'find last value when multiple segments'() {
+    def 'finds last value when multiple pages'() {
         given:
         String name = "target/temp/${randomUUID()}"
         def overriddenValue = 'baz'
-        def manager = new FileManager(name)
+        def manager = new DbManager(name)
 
         for (int i = 0; i < 1_000; i++) {
             manager.put('foo', randomUUID() as String)
@@ -118,5 +118,24 @@ class FileManagerTest extends Specification {
         then:
         assertThat(value).isPresent()
         assertThat(value).hasValue(overriddenValue)
+    }
+
+    def 'finds value on first page when multiple pages'() {
+        given:
+        String name = "target/temp/${randomUUID()}"
+        def value = 'baz'
+        def manager = new DbManager(name)
+
+        manager.put('foo', value)
+        for (int i = 0; i < 1_000; i++) {
+            manager.put(randomUUID() as String, randomUUID() as String)
+        }
+
+        when:
+        Optional<String> optionalValue = manager.get('foo')
+
+        then:
+        assertThat(optionalValue).isPresent()
+        assertThat(optionalValue).hasValue(value)
     }
 }
