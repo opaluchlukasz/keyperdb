@@ -13,6 +13,7 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Comparator;
 import java.util.stream.Stream;
 
@@ -45,7 +46,15 @@ public class DbStorage {
     public Entry readEntryAtPageWithOffset(String page, long offset) {
         try {
             RandomAccessFile pageFile = new RandomAccessFile(pagePath(page).toFile(), READ_MODE);
-            pageFile.skipBytes((int) offset);
+            return readEntryAtPageWithOffset(pageFile, offset);
+        } catch (IOException ex) {
+            throw new DbException("Fatal exception while accessing page", ex);
+        }
+    }
+
+    public Entry readEntryAtPageWithOffset(RandomAccessFile pageFile, long offset) {
+        try {
+            pageFile.seek(offset);
             return Entry.fromLine(pageFile.readLine());
         } catch (IOException ex) {
             throw new DbException("Fatal exception while accessing page", ex);
@@ -58,8 +67,7 @@ public class DbStorage {
             long length = lastPage.toFile().length();
             Files.write(lastPage, Entry.of(key, value).asBytes(), CREATE, APPEND);
             if (Files.size(lastPage) > PAGE_SIZE) {
-                createSegmentFile(pageFileName(nextPage()));
-                this.lastPage = lastPage();
+                this.lastPage = createPageFile(pageFileName(nextPage()));
             }
             return PrimitiveTuples.pair(page, length);
         } catch (IOException ex) {
@@ -67,20 +75,30 @@ public class DbStorage {
         }
     }
 
-    private void createSegmentFile(String segment) throws IOException {
+    public boolean copyToTemporary(Path page, String key, String value) {
         try {
-            Files.createFile(pagePath(segment));
-        } catch (FileAlreadyExistsException ex) {
-            LOG.trace(format("Page %s already exists", segment));
+            Files.write(page, Entry.of(key, value).asBytes(), CREATE, APPEND);
+            return page.toFile().length() > PAGE_SIZE;
+        } catch (IOException ex) {
+            throw new DbException("Fatal exception while putting record", ex);
         }
+    }
+
+    public Path createPageFile(String page) throws IOException {
+        try {
+            return Files.createFile(pagePath(page));
+        } catch (FileAlreadyExistsException ex) {
+            LOG.trace(format("Page %s already exists", page));
+        }
+        return pagePath(page);
     }
 
     private Path pagePath(String segment) {
         return Paths.get(dbPath.toFile().getPath(), segment);
     }
 
-    private String pageFileName(long segment) {
-        return format("%010d.seg", segment);
+    private String pageFileName(long page) {
+        return format("%010d.seg", page);
     }
 
     private Path lastPage() throws IOException {
@@ -90,7 +108,7 @@ public class DbStorage {
 
     private void createDbIfDoesNotExist() throws IOException {
         Files.createDirectories(dbPath);
-        createSegmentFile(pageFileName(1));
+        createPageFile(pageFileName(1));
     }
 
     public RandomAccessFile getPage(String page) {
@@ -103,5 +121,21 @@ public class DbStorage {
 
     private Long nextPage() {
         return Long.parseLong(lastPage.toFile().getName().replaceFirst(".seg", "")) + 1;
+    }
+
+    public void removePage(String originalPage) {
+        try {
+            Files.deleteIfExists(pagePath(originalPage));
+        } catch (IOException ex) {
+            throw new DbException("Fatal exception while accessing page", ex);
+        }
+    }
+
+    public void replacePage(String originalPage, String toReplace) {
+        try {
+            Files.copy(pagePath(toReplace), pagePath(originalPage), StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException ex) {
+            throw new DbException("Fatal exception while replacing page", ex);
+        }
     }
 }

@@ -1,7 +1,7 @@
 package com.github.opaluchlukasz.keyperdb.infrastructure.index;
 
-import com.github.opaluchlukasz.keyperdb.infrastructure.io.DbStorage;
 import com.github.opaluchlukasz.keyperdb.infrastructure.Entry;
+import com.github.opaluchlukasz.keyperdb.infrastructure.io.DbStorage;
 import org.eclipse.collections.api.tuple.primitive.ObjectLongPair;
 
 import java.io.IOException;
@@ -34,6 +34,16 @@ public class DbIndex {
         return Optional.empty();
     }
 
+    public Optional<String> findPage(String key) {
+        for (Map.Entry<String, SinglePageIndex> pageIndex : index.entrySet()) {
+            OptionalLong offset = pageIndex.getValue().offsetOf(key);
+            if (offset.isPresent()) {
+                return Optional.ofNullable(pageIndex.getKey());
+            }
+        }
+        return Optional.empty();
+    }
+
     private Map<String, SinglePageIndex> buildIndex() throws IOException {
         return dbStorage
                 .listPages()
@@ -49,9 +59,21 @@ public class DbIndex {
         String page = location.getOne();
         SinglePageIndex singlePageIndex = index.get(page);
         if (singlePageIndex == null) {
-            index.put(page, new SinglePageIndex(dbStorage.getPage(page)));
+            indexPage(page);
         } else {
             singlePageIndex.index(key, location.getTwo());
         }
+    }
+
+    public SinglePageIndex getPageIndex(String page) {
+        return index.get(page);
+    }
+
+    public void removePageIndex(String page) {
+        index.remove(page);
+    }
+
+    public void indexPage(String pageName) {
+        index.put(pageName, new SinglePageIndex(dbStorage.getPage(pageName)));
     }
 }

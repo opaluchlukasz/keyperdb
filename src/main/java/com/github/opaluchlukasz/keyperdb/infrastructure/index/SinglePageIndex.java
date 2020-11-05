@@ -2,6 +2,7 @@ package com.github.opaluchlukasz.keyperdb.infrastructure.index;
 
 import com.github.opaluchlukasz.keyperdb.api.DbException;
 import com.github.opaluchlukasz.keyperdb.infrastructure.Entry;
+import org.eclipse.collections.api.collection.primitive.MutableLongCollection;
 import org.eclipse.collections.impl.map.mutable.primitive.ObjectLongHashMap;
 
 import java.io.IOException;
@@ -38,5 +39,9 @@ public class SinglePageIndex {
 
     public void index(String key, long offset) {
         pageIndex.put(key, offset);
+    }
+
+    public MutableLongCollection offsets() {
+        return pageIndex.values();
     }
 }

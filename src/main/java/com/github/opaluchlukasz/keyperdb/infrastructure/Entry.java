@@ -1,5 +1,7 @@
 package com.github.opaluchlukasz.keyperdb.infrastructure;
 
+import java.util.Objects;
+
 import static java.lang.System.lineSeparator;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.regex.Pattern.quote;
@@ -35,5 +37,23 @@ public final class Entry {
 
     public byte[] asBytes() {
         return (key + ENTRY_SEPARATOR + value + lineSeparator()).getBytes(UTF_8);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        Entry entry = (Entry) o;
+        return Objects.equals(key, entry.key) &&
+                Objects.equals(value, entry.value);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(key, value);
     }
 }
