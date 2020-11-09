@@ -7,10 +7,11 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat
 
 class DbManagerTest extends Specification {
     private static final String FIRST_PAGE_FILE_NAME = '0000000001.seg'
+    private static final String KEY = 'foo'
 
     def 'should create db directory if it does not exist'() {
         given:
-        String name = "target/temp/${randomUUID()}"
+        String name = randomDbPath()
 
         when:
         new DbManager(name)
@@ -23,7 +24,7 @@ class DbManagerTest extends Specification {
 
     def 'should create first page if it does not exist'() {
         given:
-        String name = "target/temp/${randomUUID()}"
+        String name = randomDbPath()
 
         when:
         new DbManager(name)
@@ -36,13 +37,13 @@ class DbManagerTest extends Specification {
 
     def 'should use already created db if exists'() {
         given:
-        String name = "target/temp/${randomUUID()}"
-        DbManager manager = new DbManager(name)
-        manager.put('foo', 'bar')
+        String name = randomDbPath()
+        def manager = new DbManager(name)
+        manager.put(KEY, 'bar')
 
         when:
         manager = new DbManager(name)
-        def value = manager.get('foo')
+        def value = manager.get(KEY)
 
         then:
         assertThat(value).isPresent()
@@ -50,14 +51,13 @@ class DbManagerTest extends Specification {
 
     def 'should put multiple entries'() {
         given:
-        String name = "target/temp/${randomUUID()}"
-        def manager = new DbManager(name)
+        def manager = givenRandomDbManager()
 
-        manager.put('foo', 'bar')
+        manager.put(KEY, 'bar')
         manager.put('baz', 'bar')
 
         when:
-        Optional<String> value1 = manager.get('foo')
+        Optional<String> value1 = manager.get(KEY)
 
         then:
         assertThat(value1).isPresent()
@@ -71,15 +71,14 @@ class DbManagerTest extends Specification {
 
     def 'should return proper value when key was overridden'() {
         given:
-        String name = "target/temp/${randomUUID()}"
+        def manager = givenRandomDbManager()
         def overriddenValue = 'baz'
-        def manager = new DbManager(name)
 
-        manager.put('foo', 'bar')
-        manager.put('foo', overriddenValue)
+        manager.put(KEY, 'bar')
+        manager.put(KEY, overriddenValue)
 
         when:
-        Optional<String> value = manager.get('foo')
+        Optional<String> value = manager.get(KEY)
 
         then:
         assertThat(value).isPresent()
@@ -88,7 +87,7 @@ class DbManagerTest extends Specification {
 
     def 'creates new page when threshold reached'() {
         given:
-        String name = "target/temp/${randomUUID()}"
+        String name = randomDbPath()
         def manager = new DbManager(name)
 
         for (int i = 0; i < 1_000; i++) {
@@ -103,17 +102,16 @@ class DbManagerTest extends Specification {
 
     def 'finds last value when multiple pages'() {
         given:
-        String name = "target/temp/${randomUUID()}"
+        def manager = givenRandomDbManager()
         def overriddenValue = 'baz'
-        def manager = new DbManager(name)
 
         for (int i = 0; i < 1_000; i++) {
-            manager.put('foo', randomUUID() as String)
+            manager.put(KEY, randomUUID() as String)
         }
-        manager.put('foo', overriddenValue)
+        manager.put(KEY, overriddenValue)
 
         when:
-        Optional<String> value = manager.get('foo')
+        Optional<String> value = manager.get(KEY)
 
         then:
         assertThat(value).isPresent()
@@ -122,20 +120,53 @@ class DbManagerTest extends Specification {
 
     def 'finds value on first page when multiple pages'() {
         given:
-        String name = "target/temp/${randomUUID()}"
+        def manager = givenRandomDbManager()
         def value = 'baz'
-        def manager = new DbManager(name)
 
-        manager.put('foo', value)
+        manager.put(KEY, value)
         for (int i = 0; i < 1_000; i++) {
             manager.put(randomUUID() as String, randomUUID() as String)
         }
 
         when:
-        Optional<String> optionalValue = manager.get('foo')
+        Optional<String> optionalValue = manager.get(KEY)
 
         then:
         assertThat(optionalValue).isPresent()
         assertThat(optionalValue).hasValue(value)
+    }
+
+    def 'deletes existing key'() {
+        given:
+        def manager = givenRandomDbManager()
+        manager.put(KEY, randomUUID().toString())
+
+        when:
+        manager.delete(KEY)
+
+        then:
+        Optional<String> optionalValue = manager.get(KEY)
+        assertThat(optionalValue).isEmpty()
+    }
+
+    def 'deletes non-existent key'() {
+        given:
+        def manager = givenRandomDbManager()
+
+        when:
+        manager.delete(KEY)
+
+        then:
+        Optional<String> optionalValue = manager.get(KEY)
+        assertThat(optionalValue).isEmpty()
+    }
+
+    private static DbManager givenRandomDbManager() {
+        String name = randomDbPath()
+        new DbManager(name)
+    }
+
+    private static GString randomDbPath() {
+        "target/temp/${randomUUID()}"
     }
 }

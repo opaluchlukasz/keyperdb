@@ -61,17 +61,17 @@ public class DbStorage {
         }
     }
 
-    public ObjectLongPair<String> put(String key, String value) {
+    public ObjectLongPair<String> put(Entry entry) {
         try {
             String page = lastPage.toFile().getName();
             long length = lastPage.toFile().length();
-            Files.write(lastPage, Entry.of(key, value).asBytes(), CREATE, APPEND);
+            Files.write(lastPage, entry.asBytes(), CREATE, APPEND);
             if (Files.size(lastPage) > PAGE_SIZE) {
                 this.lastPage = createPageFile(pageFileName(nextPage()));
             }
             return PrimitiveTuples.pair(page, length);
         } catch (IOException ex) {
-            throw new DbException("Fatal exception while putting record", ex);
+            throw new DbException("Fatal exception while appending record", ex);
         }
     }
 

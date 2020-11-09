@@ -28,10 +28,18 @@ public class DbIndex {
             OptionalLong offset = pageIndex.getValue().offsetOf(key);
             if (offset.isPresent()) {
                 Entry entry = dbStorage.readEntryAtPageWithOffset(pageIndex.getKey(), offset.getAsLong());
-                return Optional.ofNullable(entry.value());
+                return entry.isDeleted() ? Optional.empty() : Optional.of(entry.value());
             }
         }
         return Optional.empty();
+    }
+
+    public void put(String key, String value) {
+        store(Entry.of(key, value));
+    }
+
+    public void delete(String key) {
+        store(Entry.deleted(key));
     }
 
     public Optional<String> findPage(String key) {
@@ -54,14 +62,14 @@ public class DbIndex {
                     () -> new TreeMap<>(reverseOrder())));
     }
 
-    public void put(String key, String value) {
-        ObjectLongPair<String> location = dbStorage.put(key, value);
+    private void store(Entry entry) {
+        ObjectLongPair<String> location = dbStorage.put(entry);
         String page = location.getOne();
         SinglePageIndex singlePageIndex = index.get(page);
         if (singlePageIndex == null) {
             indexPage(page);
         } else {
-            singlePageIndex.index(key, location.getTwo());
+            singlePageIndex.index(entry.key(), location.getTwo());
         }
     }
 

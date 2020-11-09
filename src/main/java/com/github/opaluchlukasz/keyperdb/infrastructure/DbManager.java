@@ -37,4 +37,8 @@ public class DbManager {
     public Optional<String> get(String key) {
         return dbIndex.getIndexed(key);
     }
+
+    public void delete(String key) {
+        dbIndex.delete(key);
+    }
 }

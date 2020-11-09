@@ -9,6 +9,7 @@ import static java.util.regex.Pattern.quote;
 public final class Entry {
     private static final String ENTRY_SEPARATOR = "|:|";
     private static final String ENTRY_SEPARATOR_PATTERN = quote(ENTRY_SEPARATOR);
+    private static final String TOMBSTONE = "<<DELETED>>";
 
     private final String key;
     private final String value;
@@ -25,6 +26,10 @@ public final class Entry {
 
     public static Entry of(String key, String value) {
         return new Entry(key, value);
+    }
+
+    public static Entry deleted(String key) {
+        return new Entry(key, TOMBSTONE);
     }
 
     public String key() {
@@ -55,5 +60,9 @@ public final class Entry {
     @Override
     public int hashCode() {
         return Objects.hash(key, value);
+    }
+
+    public boolean isDeleted() {
+        return TOMBSTONE.equals(value);
     }
 }
